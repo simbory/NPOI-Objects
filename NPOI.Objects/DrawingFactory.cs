@@ -22,8 +22,10 @@ namespace NPOI.Objects
         
         public string ExcelPath { get; private set; }
 
-        private DrawingFactory(string path)
+        public DrawingFactory(string path)
         {
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentNullException("path");
             ExcelPath = path;
             var ext = Path.GetExtension(path);
             if (string.IsNullOrEmpty(ext) || ext.ToLower() != ".xls")
@@ -36,8 +38,12 @@ namespace NPOI.Objects
             _isOutStream = false;
         }
 
-        private DrawingFactory(Stream stream)
+        public DrawingFactory(Stream stream)
         {
+            if (stream == null)
+                throw new ArgumentNullException("stream");
+            if (!stream.CanWrite)
+                throw new IOException("The stream is no writable");
             _excelStream = stream;
             _workbook = new HSSFWorkbook();
             _isOutStream = true;
@@ -121,7 +127,7 @@ namespace NPOI.Objects
             foreach (var property in classProperties)
             {
                 var ignoreAttr = property.GetCustomAttribute<DrawingIgnoreAttribute>();
-                var propAttr = property.GetCustomAttribute<ColumnAttribute>();
+                var propAttr = property.GetCustomAttribute<NPOIColumnAttribute>();
                 if (ignoreAttr != null || propAttr == null)
                     continue;
                 var cellInfo = new ColumnDrawing();
@@ -287,7 +293,7 @@ namespace NPOI.Objects
                 cell.CellStyle.SetFont(drawing.HeaderFont);
         }
 
-        private void DrawColumn(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
+        private void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
         {
             if (rowIndex == 3)
             {
@@ -324,7 +330,7 @@ namespace NPOI.Objects
             for (int i = 0; i < objects.Length; i++)
             {
                 var obj = objects[i];
-                DrawColumn(drawings, sheet, objAttr.StartIndex + i, obj);
+                DrawRow(drawings, sheet, objAttr.StartIndex + i, obj);
             }
         }
 
@@ -347,22 +353,6 @@ namespace NPOI.Objects
                 throw new FileLoadException("Invalid file extension. The file extension must be .xls", path);
             _workbook = new HSSFWorkbook(new FileStream(path, FileMode.Open, FileAccess.ReadWrite));
             _useTemplate = true;
-        }
-
-        public static DrawingFactory CreateFactory(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                throw new ArgumentNullException("path");
-            return new DrawingFactory(path);
-        }
-
-        public static DrawingFactory CreateFactory(Stream stream)
-        {
-            if (stream == null)
-                throw new ArgumentNullException("stream");
-            if (!stream.CanWrite)
-                throw new IOException("The stream is no writable");
-            return new DrawingFactory(stream);
         }
     }
 }

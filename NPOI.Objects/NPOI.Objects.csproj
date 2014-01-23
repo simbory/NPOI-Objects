@@ -58,7 +58,7 @@
   <ItemGroup>
     <Compile Include="Attributes\AlternateCellStyleAttribute.cs" />
     <Compile Include="Attributes\CellStyleAttribute.cs" />
-    <Compile Include="Attributes\ColumnAttribute.cs" />
+    <Compile Include="Attributes\NPOIColumnAttribute.cs" />
     <Compile Include="Attributes\DrawingIgnoreAttribute.cs" />
     <Compile Include="Attributes\HeaderStyleAttribute.cs" />
     <Compile Include="Attributes\StyleAttribute.cs" />

@@ -16,7 +16,7 @@ namespace NPOI.Objects
                 if (color != null)
                     return (Color) color;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return null;
             }

@@ -10,12 +10,12 @@ namespace NPOI.Example
         {
             InitializeComponent();
             TestModel[] locationList;
-            using (var factory = ObjectFactory.CreateFactory("input.xls"))
+            using (var factory = new ObjectFactory("input.xls"))
             {
                 locationList = factory.SheetToObjects<TestModel>();
                 dataGridView1.DataSource = locationList;
             }
-            using (var factory = DrawingFactory.CreateFactory(string.Format("{0}.xls", DateTime.Now.ToFileTimeUtc())))
+            using (var factory = new DrawingFactory(string.Format("{0}.xls", DateTime.Now.ToFileTimeUtc())))
             {
                 factory.Draw(0, "Sheet0", locationList);
             }

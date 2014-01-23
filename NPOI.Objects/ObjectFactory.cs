@@ -14,29 +14,43 @@ namespace NPOI.Objects
     {
         private readonly IWorkbook _workbook;
 
-        private readonly FileStream _excelStream;
+        private readonly Stream _excelStream;
+
+        private readonly bool _needClose;
 
         public string ExcelPath { get; private set; }
 
         public ExcelType ExcelType { get; private set; }
 
-        private ObjectFactory(string path, FileStream fileStream)
+        public ObjectFactory(string path)
         {
             ExcelPath = path;
             var ext = Path.GetExtension(path);
             if (string.IsNullOrEmpty(ext) || (ext.ToLower() != ".xls" && ext.ToLower() != ".xlsx"))
                 throw new FileLoadException("File extension is invalid", path);
             ExcelType = ext == ".xls" ? ExcelType.Excel2003 : ExcelType.Excel2007;
-            if (fileStream != null)
-            {
-                if (!fileStream.CanRead)
-                    throw new IOException("The file stream is not readable.");
-                _workbook = ExcelType == ExcelType.Excel2003
-                    ? (IWorkbook) new HSSFWorkbook(fileStream)
-                    : new XSSFWorkbook(fileStream);
-                _excelStream = fileStream;
-            }
+            _excelStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            _workbook = ExcelType == ExcelType.Excel2003
+                    ? (IWorkbook)new HSSFWorkbook(_excelStream)
+                    : new XSSFWorkbook(_excelStream);
+            _needClose = true;
         }
+
+        public ObjectFactory(Stream stream, ExcelType excelType)
+        {
+            ExcelType = excelType;
+            if (stream == null)
+                throw new ArgumentNullException("stream");
+            if (!stream.CanRead)
+                throw new IOException("The file stream is not readable.");
+            _workbook = ExcelType == ExcelType.Excel2003
+                ? (IWorkbook)new HSSFWorkbook(stream)
+                : new XSSFWorkbook(stream);
+            _excelStream = stream;
+            _needClose = false;
+        }
+
+
 
         public T[] SheetToObjects<T>(int sheetIndex = 0) where T : class
         {
@@ -85,7 +99,7 @@ namespace NPOI.Objects
             {
                 foreach (var property in classProperties)
                 {
-                    var propAttr = property.GetCustomAttribute<ColumnAttribute>();
+                    var propAttr = property.GetCustomAttribute<NPOIColumnAttribute>();
                     if (propAttr == null)
                         continue;
                     if (propAttr.Index >= 0 && headerRowDic.ContainsValue(propAttr.Index))
@@ -256,30 +270,16 @@ namespace NPOI.Objects
 
         public void Dispose()
         {
-            if (_excelStream == null)
+            if (_excelStream == null || !_needClose)
                 return;
             try
             {
                 _excelStream.Close();
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                Console.Write(ex.Message);
+                Console.Write(ex);
             }
-        }
-
-        public static ObjectFactory CreateFactory(string path)
-        {
-            if (File.Exists(path))
-            {
-                return CreateFactory(path, new FileStream(path, FileMode.Open, FileAccess.Read));
-            }
-            return new ObjectFactory(path, null);
-        }
-
-        public static ObjectFactory CreateFactory(string path, FileStream stream)
-        {
-            return new ObjectFactory(path, stream);
         }
     }
 }

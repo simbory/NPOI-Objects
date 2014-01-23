@@ -2,29 +2,29 @@
 
 namespace NPOI.Objects.Attributes
 {
-    public class ColumnAttribute : Attribute
+    public class NPOIColumnAttribute : Attribute
     {
         public int Index { get; set; }
 
         public string Name { get; set; }
 
-        public ColumnAttribute()
+        public NPOIColumnAttribute()
         {
             Index = -1;
         }
 
-        public ColumnAttribute(int index)
+        public NPOIColumnAttribute(int index)
         {
             Index = index;
         }
 
-        public ColumnAttribute(string name)
+        public NPOIColumnAttribute(string name)
         {
             Name = name;
             Index = -1;
         }
 
-        public ColumnAttribute(int index, string name)
+        public NPOIColumnAttribute(int index, string name)
         {
             Index = index;
             Name = name;
