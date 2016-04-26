@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using NPOI.HSSF.UserModel;
-using NPOI.Objects.Attributes;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 
@@ -54,7 +53,7 @@ namespace NPOI.Objects
 
         public T[] SheetToObjects<T>(int sheetIndex = 0) where T : class
         {
-            AssertType(typeof (T));
+            AssertType(typeof(T));
             if (_workbook == null)
                 return new T[0];
             var sheet = _workbook.GetSheetAt(sheetIndex);
@@ -63,7 +62,7 @@ namespace NPOI.Objects
 
         public T[] SheetToObjects<T>(string sheetName) where T : class
         {
-            AssertType(typeof (T));
+            AssertType(typeof(T));
             if (_workbook == null)
                 return new T[0];
             var sheet = _workbook.GetSheet(sheetName);
@@ -120,7 +119,7 @@ namespace NPOI.Objects
                             continue;
                         }
                     }
-                    throw new InvalidColumnException(string.IsNullOrEmpty(propAttr.Name) ? property.Name: propAttr.Name);
+                    throw new InvalidColumnException(string.IsNullOrEmpty(propAttr.Name) ? property.Name : propAttr.Name);
                 }
             }
             return props;
@@ -131,8 +130,8 @@ namespace NPOI.Objects
             if (sheet == null)
                 return new T[0];
             var objectList = new List<T>();
-            var objInfo = AssertType(typeof (T));
-            var properties = GetClassProperties(typeof (T), sheet);
+            var objInfo = AssertType(typeof(T));
+            var properties = GetClassProperties(typeof(T), sheet);
             var end = objInfo.EndIndex;
             if (end < 1 || end > sheet.LastRowNum)
             {
@@ -170,11 +169,11 @@ namespace NPOI.Objects
         {
             var propType = prop.PropertyType;
             object value = null;
-            if (propType == typeof (int))
+            if (propType == typeof(int))
             {
-                value = (int) cell.NumericCellValue;
+                value = (int)cell.NumericCellValue;
             }
-            else if (propType == typeof (uint))
+            else if (propType == typeof(uint))
             {
                 value = (uint)cell.NumericCellValue;
             }
@@ -202,11 +201,11 @@ namespace NPOI.Objects
             {
                 value = cell.NumericCellValue;
             }
-            else if (propType == typeof (bool))
+            else if (propType == typeof(bool))
             {
                 value = cell.BooleanCellValue;
             }
-            else if (propType == typeof (DateTime))
+            else if (propType == typeof(DateTime))
             {
                 value = cell.DateCellValue;
             }
@@ -214,7 +213,7 @@ namespace NPOI.Objects
             {
                 value = cell.ErrorCellValue;
             }
-            else if (propType == typeof (char))
+            else if (propType == typeof(char))
             {
                 var strValue = cell.StringCellValue;
                 if (!string.IsNullOrEmpty(strValue))
@@ -222,7 +221,7 @@ namespace NPOI.Objects
                     value = strValue[0];
                 }
             }
-            else if (propType == typeof (char[]))
+            else if (propType == typeof(char[]))
             {
                 var strValue = cell.StringCellValue;
                 if (!string.IsNullOrEmpty(strValue))
@@ -236,31 +235,42 @@ namespace NPOI.Objects
                 if (!string.IsNullOrEmpty(strValue))
                 {
                     Guid guid;
-                    if (Guid.TryParse(strValue, out guid))
-                    {
-                        value = guid;
-                    }
+                    value = Guid.TryParse(strValue, out guid) ? guid : Guid.Empty;
                 }
             }
-            else if (propType == typeof (Uri))
+            else if (propType == typeof(Uri))
             {
-                var strValue = cell.StringCellValue;
-                if (!string.IsNullOrEmpty(strValue))
+                try
                 {
-                    value = new Uri(strValue);
+                    var strValue = cell.StringCellValue;
+                    if (!string.IsNullOrEmpty(strValue))
+                    {
+                        value = new Uri(strValue);
+                    }
+                }
+                catch (Exception)
+                {
+                    return null;
                 }
             }
             else if (propType == typeof(string))
             {
-                var richTextAttrs = prop.GetCustomAttributes(typeof (RichTextAttribute), false);
-                value = richTextAttrs.Length < 1  ? cell.StringCellValue : cell.ToHtml();
+                try
+                {
+                    var richTextAttrs = prop.GetCustomAttributes(typeof(RichTextAttribute), false);
+                    value = richTextAttrs.Length < 1 ? cell.StringCellValue : cell.ToHtml();
+                }
+                catch (Exception)
+                {
+                    return null;
+                }
             }
             return value;
         }
 
         private NPOIObjectAttribute AssertType(Type type)
         {
-            var attr = type.GetCustomAttribute< NPOIObjectAttribute>();
+            var attr = type.GetCustomAttribute<NPOIObjectAttribute>();
             if (attr == null)
             {
                 throw new CustomAttributeFormatException("Invalid class type.\r\nThe class " + type + " must has " + typeof(NPOIObjectAttribute) + " attribute");
@@ -276,9 +286,9 @@ namespace NPOI.Objects
             {
                 _excelStream.Close();
             }
-            catch(Exception ex)
+            catch (Exception)
             {
-                Console.Write(ex);
+                // ignored
             }
         }
     }

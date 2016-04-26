@@ -6,9 +6,9 @@ using NPOI.SS.UserModel;
 
 namespace NPOI.Objects
 {
-    public static class NPOIExtension
+    internal static class NPOIExtension
     {
-        public static string ToHtml(this ICell cell)
+        internal static string ToHtml(this ICell cell)
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("<p>");
@@ -33,7 +33,6 @@ namespace NPOI.Objects
                 }
                 catch(Exception ex)
                 {
-                    Console.Write(ex);
                     font = null;
                 }
                 if (font == null )

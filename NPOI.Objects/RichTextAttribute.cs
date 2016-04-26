@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NPOI.Objects.Attributes
+namespace NPOI.Objects
 {
     public class RichTextAttribute : Attribute
     {

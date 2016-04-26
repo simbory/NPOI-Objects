@@ -1,7 +1,7 @@
 ﻿using System;
 using NPOI.SS.UserModel;
 
-namespace NPOI.Objects.Attributes
+namespace NPOI.Objects
 {
     public abstract class StyleAttribute : Attribute
     {

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using NPOI.HSSF.UserModel;
-using NPOI.Objects.Attributes;
 using NPOI.SS.UserModel;
 
 namespace NPOI.Objects
@@ -48,7 +47,7 @@ namespace NPOI.Objects
             _workbook = new HSSFWorkbook();
             _isOutStream = true;
         }
-
+        
         private short GetColor(Color color)
         {
             var workbookColor = _workbook.GetCustomPalette().FindColor(color.R, color.G, color.B);
@@ -57,14 +56,14 @@ namespace NPOI.Objects
                 try
                 {
                     workbookColor = _workbook.GetCustomPalette().AddColor(color.R, color.G, color.B);
-                    return workbookColor.GetIndex();
+                    return workbookColor.Indexed;
                 }
                 catch (Exception)
                 {
-                    return _workbook.GetCustomPalette().FindSimilarColor(color.R, color.G, color.B).GetIndex();
+                    return _workbook.GetCustomPalette().FindSimilarColor(color.R, color.G, color.B).Indexed;
                 }
             }
-            return workbookColor.GetIndex();
+            return workbookColor.Indexed;
         }
 
         private ICellStyle FillStyle(StyleAttribute attr)
@@ -90,6 +89,10 @@ namespace NPOI.Objects
 
         private IFont FillFont(StyleAttribute attr)
         {
+            if (attr == null)
+            {
+                return null;
+            }
             if (attr.FontWeight > 0
                 || !string.IsNullOrEmpty(attr.FontFamily)
                 || attr.FontSize > 0
@@ -156,7 +159,8 @@ namespace NPOI.Objects
                 var headerFont = FillFont(headerStyleAttr);
                 if (headerFont != null)
                     cellInfo.HeaderFont = headerFont;
-                cellInfo.ColumnWidth = headerStyleAttr.ColumnWidth;
+                if (headerStyleAttr != null)
+                    cellInfo.ColumnWidth = headerStyleAttr.ColumnWidth;
 
                 var cellStyleAttr = property.GetCustomAttribute<CellStyleAttribute>();
                 if (cellStyleAttr != null)
@@ -295,10 +299,6 @@ namespace NPOI.Objects
 
         private void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
         {
-            if (rowIndex == 3)
-            {
-                Console.Write(rowIndex);
-            }
             var row = sheet.CreateRow(rowIndex);
             foreach (var drawing in drawings)
             {
