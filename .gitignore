@@ -211,12 +211,4 @@ $RECYCLE.BIN/
 /dist
 /node_modules
 .vs
-/MilleniumHotel.Website/Scripts/footer.min.js.map
-.idea/
-/SQL/Library/Starsoft.Core.dll
-/SQL/Library/Starsoft.Core.XML
-/SQL/Library/Starsoft.UrlRewriting.dll
-/SQL/Library/Starsoft.UrlRewriting.XML
-/SQL/Library/Starsoft.Web.dll
-/SQL/Library/Starsoft.Web.XML
-MillenniumHotel.Cms/sitecore modules/Shell/Order/Util/ListOrderTool.cs
+NPOI.Objects.NugetPackager
