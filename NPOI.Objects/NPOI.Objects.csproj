@@ -62,6 +62,7 @@
   <ItemGroup>
     <Compile Include="AlternateCellStyleAttribute.cs" />
     <Compile Include="CellStyleAttribute.cs" />
+    <Compile Include="CellValueConverters.cs" />
     <Compile Include="DrawingIgnoreAttribute.cs" />
     <Compile Include="HeaderStyleAttribute.cs" />
     <Compile Include="NPOIColumnAttribute.cs" />

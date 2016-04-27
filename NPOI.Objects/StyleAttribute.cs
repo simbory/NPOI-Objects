@@ -11,9 +11,13 @@ namespace NPOI.Objects
 
         public string BackgroundColor { get; set; }
 
+        public string ForegroundColor { get; set; }
+
         public HorizontalAlignment TextAlign { get; set; }
 
         public VerticalAlignment VerticalAlign { get; set; }
+
+        public FillPattern FillPattern { get; set; }
 
         public short FontWeight { get; set; }
 
@@ -28,6 +32,7 @@ namespace NPOI.Objects
             TextAlign = HorizontalAlignment.General;
             VerticalAlign = VerticalAlignment.Top;
             FontSize = -1;
+            FillPattern = FillPattern.SolidForeground;
         }
     }
 }

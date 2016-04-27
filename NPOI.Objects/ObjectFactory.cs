@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
@@ -9,17 +8,33 @@ using NPOI.XSSF.UserModel;
 
 namespace NPOI.Objects
 {
-    public sealed class ObjectFactory : IDisposable
+    public class ObjectFactory : IDisposable
     {
-        private readonly IWorkbook _workbook;
+        protected readonly IWorkbook Workbook;
 
-        private readonly Stream _excelStream;
+        protected readonly Stream ExcelStream;
 
-        private readonly bool _needClose;
+        protected readonly bool NeedClose;
 
-        public string ExcelPath { get; private set; }
+        public string ExcelPath { get; protected set; }
 
-        public ExcelType ExcelType { get; private set; }
+        public ExcelType ExcelType { get; protected set; }
+
+        public Func<ICell, string> RichTextConverter { get; set; }
+
+        public Func<ICell, bool> BooleanConverter { get; set; }
+
+        public Func<ICell, double> NumericConverter { get; set; }
+
+        public Func<ICell, DateTime> DateTimeConverter { get; set; }
+
+        public Func<ICell, byte> ByteConverter { get; set; }
+
+        public Func<ICell, char> CharConverter { get; set; }
+
+        public Func<ICell, Guid> GuidConverter { get; set; }
+
+        public Func<ICell, Type, object> UnknowTypeConverter { get; set; }
 
         public ObjectFactory(string path)
         {
@@ -28,11 +43,19 @@ namespace NPOI.Objects
             if (string.IsNullOrEmpty(ext) || (ext.ToLower() != ".xls" && ext.ToLower() != ".xlsx"))
                 throw new FileLoadException("File extension is invalid", path);
             ExcelType = ext == ".xls" ? ExcelType.Excel2003 : ExcelType.Excel2007;
-            _excelStream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            _workbook = ExcelType == ExcelType.Excel2003
-                    ? (IWorkbook)new HSSFWorkbook(_excelStream)
-                    : new XSSFWorkbook(_excelStream);
-            _needClose = true;
+            ExcelStream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            Workbook = ExcelType == ExcelType.Excel2003
+                    ? (IWorkbook)new HSSFWorkbook(ExcelStream)
+                    : new XSSFWorkbook(ExcelStream);
+            NeedClose = true;
+            RichTextConverter = CellValueConverters.RichTextConverter;
+            BooleanConverter = CellValueConverters.BooleanConverter;
+            NumericConverter = CellValueConverters.NumericConverter;
+            DateTimeConverter = CellValueConverters.DateTimeConverter;
+            ByteConverter = CellValueConverters.ByteConverter;
+            CharConverter = CellValueConverters.CharConverter;
+            GuidConverter = CellValueConverters.GuidConverter;
+            UnknowTypeConverter = CellValueConverters.UnknowTypeConverter;
         }
 
         public ObjectFactory(Stream stream, ExcelType excelType)
@@ -42,34 +65,32 @@ namespace NPOI.Objects
                 throw new ArgumentNullException("stream");
             if (!stream.CanRead)
                 throw new IOException("The file stream is not readable.");
-            _workbook = ExcelType == ExcelType.Excel2003
+            Workbook = ExcelType == ExcelType.Excel2003
                 ? (IWorkbook)new HSSFWorkbook(stream)
                 : new XSSFWorkbook(stream);
-            _excelStream = stream;
-            _needClose = false;
+            ExcelStream = stream;
+            NeedClose = false;
         }
-
-
-
+        
         public T[] SheetToObjects<T>(int sheetIndex = 0) where T : class
         {
             AssertType(typeof(T));
-            if (_workbook == null)
+            if (Workbook == null)
                 return new T[0];
-            var sheet = _workbook.GetSheetAt(sheetIndex);
+            var sheet = Workbook.GetSheetAt(sheetIndex);
             return ConvertSheetToObjects<T>(sheet);
         }
 
         public T[] SheetToObjects<T>(string sheetName) where T : class
         {
             AssertType(typeof(T));
-            if (_workbook == null)
+            if (Workbook == null)
                 return new T[0];
-            var sheet = _workbook.GetSheet(sheetName);
+            var sheet = Workbook.GetSheet(sheetName);
             return ConvertSheetToObjects<T>(sheet);
         }
 
-        private Dictionary<PropertyInfo, int> GetClassProperties(Type classType, ISheet sheet)
+        protected Dictionary<PropertyInfo, int> GetClassProperties(Type classType, ISheet sheet)
         {
             if (sheet == null)
                 return null;
@@ -125,7 +146,7 @@ namespace NPOI.Objects
             return props;
         }
 
-        private T[] ConvertSheetToObjects<T>(ISheet sheet) where T : class
+        protected T[] ConvertSheetToObjects<T>(ISheet sheet) where T : class
         {
             if (sheet == null)
                 return new T[0];
@@ -144,7 +165,7 @@ namespace NPOI.Objects
             return objectList.ToArray();
         }
 
-        private T RowToObject<T>(Dictionary<PropertyInfo, int> props, IRow row)
+        protected T RowToObject<T>(Dictionary<PropertyInfo, int> props, IRow row)
         {
             var obj = Activator.CreateInstance<T>();
             if (row != null)
@@ -155,7 +176,7 @@ namespace NPOI.Objects
                     var cell = row.GetCell(propPair.Value);
                     if (cell == null)
                         continue;
-                    var value = CellToObject(prop, cell);
+                    var value = GetCellValue(prop, cell);
                     if (value != null)
                     {
                         prop.SetValue(obj, value, null);
@@ -165,110 +186,84 @@ namespace NPOI.Objects
             return obj;
         }
 
-        private object CellToObject(PropertyInfo prop, ICell cell)
+        protected virtual object GetCellValue(PropertyInfo prop, ICell cell)
         {
             var propType = prop.PropertyType;
-            object value = null;
+
+            if (propType == typeof(string))
+            {
+                var isRichText = prop.GetCustomAttributes(typeof(RichTextAttribute), false).Length > 0;
+                if (isRichText)
+                {
+                    var richText = cell.RichStringCellValue;
+                    return richText != null ? RichTextConverter(cell) : null;
+                }
+                try
+                {
+                    return cell.StringCellValue;
+                }
+                catch (Exception)
+                {
+                    var rich = cell.RichStringCellValue;
+                    return rich != null ? rich.String : null;
+                }
+            }
+            if (propType == typeof(bool))
+            {
+                return BooleanConverter(cell);
+            }
             if (propType == typeof(int))
             {
-                value = (int)cell.NumericCellValue;
+                return (int) NumericConverter(cell);
             }
-            else if (propType == typeof(uint))
+            if (propType == typeof(uint))
             {
-                value = (uint)cell.NumericCellValue;
+                return (uint)NumericConverter(cell);
             }
-            else if (propType == typeof(long))
+            if (propType == typeof(long))
             {
-                value = (long)cell.NumericCellValue;
+                return (long)NumericConverter(cell);
             }
-            else if (propType == typeof(ulong))
+            if (propType == typeof(ulong))
             {
-                value = (ulong)cell.NumericCellValue;
+                return (ulong)NumericConverter(cell);
             }
-            else if (propType == typeof(short))
+            if (propType == typeof(short))
             {
-                value = (short)cell.NumericCellValue;
+                return (short)NumericConverter(cell);
             }
-            else if (propType == typeof(ushort))
+            if (propType == typeof(ushort))
             {
-                value = (ushort)cell.NumericCellValue;
+                return (ushort)NumericConverter(cell);
             }
-            else if (propType == typeof(float))
+            if (propType == typeof(float))
             {
-                value = (float)cell.NumericCellValue;
+                return (float)NumericConverter(cell);
             }
-            else if (propType == typeof(double))
+            if (propType == typeof(double))
             {
-                value = cell.NumericCellValue;
+                return NumericConverter(cell);
             }
-            else if (propType == typeof(bool))
+            if (propType == typeof(DateTime))
             {
-                value = cell.BooleanCellValue;
+                return DateTimeConverter(cell);
             }
-            else if (propType == typeof(DateTime))
+            if (propType == typeof(byte))
             {
-                value = cell.DateCellValue;
+                return ByteConverter(cell);
             }
-            else if (propType == typeof(byte))
+            if (propType == typeof(char))
             {
-                value = cell.ErrorCellValue;
+                return CharConverter(cell);
             }
-            else if (propType == typeof(char))
+            if (propType == typeof(Guid))
             {
-                var strValue = cell.StringCellValue;
-                if (!string.IsNullOrEmpty(strValue))
-                {
-                    value = strValue[0];
-                }
+                return GuidConverter(cell);
             }
-            else if (propType == typeof(char[]))
-            {
-                var strValue = cell.StringCellValue;
-                if (!string.IsNullOrEmpty(strValue))
-                {
-                    value = strValue.ToArray();
-                }
-            }
-            else if (propType == typeof(Guid))
-            {
-                var strValue = cell.StringCellValue;
-                if (!string.IsNullOrEmpty(strValue))
-                {
-                    Guid guid;
-                    value = Guid.TryParse(strValue, out guid) ? guid : Guid.Empty;
-                }
-            }
-            else if (propType == typeof(Uri))
-            {
-                try
-                {
-                    var strValue = cell.StringCellValue;
-                    if (!string.IsNullOrEmpty(strValue))
-                    {
-                        value = new Uri(strValue);
-                    }
-                }
-                catch (Exception)
-                {
-                    return null;
-                }
-            }
-            else if (propType == typeof(string))
-            {
-                try
-                {
-                    var richTextAttrs = prop.GetCustomAttributes(typeof(RichTextAttribute), false);
-                    value = richTextAttrs.Length < 1 ? cell.StringCellValue : cell.ToHtml();
-                }
-                catch (Exception)
-                {
-                    return null;
-                }
-            }
-            return value;
+            return UnknowTypeConverter(cell, propType);
         }
 
-        private NPOIObjectAttribute AssertType(Type type)
+        protected NPOIObjectAttribute AssertType(Type type)
         {
             var attr = type.GetCustomAttribute<NPOIObjectAttribute>();
             if (attr == null)
@@ -280,11 +275,11 @@ namespace NPOI.Objects
 
         public void Dispose()
         {
-            if (_excelStream == null || !_needClose)
+            if (ExcelStream == null || !NeedClose)
                 return;
             try
             {
-                _excelStream.Close();
+                ExcelStream.Close();
             }
             catch (Exception)
             {

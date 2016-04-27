@@ -212,3 +212,4 @@ $RECYCLE.BIN/
 /node_modules
 .vs
 NPOI.Objects.NugetPackager
+.idea

@@ -5,21 +5,25 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using NPOI.HSSF.UserModel;
+using NPOI.HSSF.Util;
 using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace NPOI.Objects
 {
     public class DrawingFactory : IDisposable
     {
-        private HSSFWorkbook _workbook;
+        protected IWorkbook Workbook;
 
-        private readonly Stream _excelStream;
+        protected readonly Stream ExcelStream;
 
-        private readonly bool _isOutStream;
+        protected readonly bool IsOutStream;
 
-        private bool _useTemplate;
+        protected bool UseTemplate;
         
-        public string ExcelPath { get; private set; }
+        public string ExcelPath { get; protected set; }
+
+        public ExcelType WorkbookType { get; protected set; }
 
         public DrawingFactory(string path)
         {
@@ -27,67 +31,129 @@ namespace NPOI.Objects
                 throw new ArgumentNullException("path");
             ExcelPath = path;
             var ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext) || ext.ToLower() != ".xls")
-                throw new FileLoadException("File extension is invalid. The file extension must be .xls", path);
-            var dir = Path.GetDirectoryName(ExcelPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-            _excelStream = new FileStream(path, File.Exists(ExcelPath)? FileMode.Open : FileMode.CreateNew, FileAccess.Write);
-            _workbook = new HSSFWorkbook();
-            _isOutStream = false;
+            if (string.IsNullOrEmpty(ext))
+            {
+                throw new FileLoadException("File extension cannot be empty", path);
+            }
+            if (ext.Equals(".xls", StringComparison.InvariantCultureIgnoreCase))
+            {
+                var dir = Path.GetDirectoryName(ExcelPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                ExcelStream = new FileStream(path, File.Exists(ExcelPath) ? FileMode.Open : FileMode.CreateNew, FileAccess.Write);
+                Workbook = new HSSFWorkbook();
+                WorkbookType = ExcelType.Excel2003;
+                IsOutStream = false;
+            }
+            else if (ext.Equals(".xlsx", StringComparison.InvariantCultureIgnoreCase))
+            {
+                var dir = Path.GetDirectoryName(ExcelPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+                ExcelStream = new FileStream(path, File.Exists(ExcelPath) ? FileMode.Open : FileMode.CreateNew, FileAccess.Write);
+                Workbook = new XSSFWorkbook();
+                WorkbookType = ExcelType.Excel2007;
+                IsOutStream = false;
+            }
         }
 
-        public DrawingFactory(Stream stream)
+        public DrawingFactory(Stream stream, ExcelType workbookType)
         {
             if (stream == null)
                 throw new ArgumentNullException("stream");
             if (!stream.CanWrite)
                 throw new IOException("The stream is no writable");
-            _excelStream = stream;
-            _workbook = new HSSFWorkbook();
-            _isOutStream = true;
-        }
-        
-        private short GetColor(Color color)
-        {
-            var workbookColor = _workbook.GetCustomPalette().FindColor(color.R, color.G, color.B);
-            if (workbookColor == null)
+            ExcelStream = stream;
+            WorkbookType = workbookType;
+            if (WorkbookType == ExcelType.Excel2003)
             {
-                try
-                {
-                    workbookColor = _workbook.GetCustomPalette().AddColor(color.R, color.G, color.B);
-                    return workbookColor.Indexed;
-                }
-                catch (Exception)
-                {
-                    return _workbook.GetCustomPalette().FindSimilarColor(color.R, color.G, color.B).Indexed;
-                }
+                Workbook = new HSSFWorkbook();
             }
-            return workbookColor.Indexed;
+            else
+            {
+                Workbook = new XSSFWorkbook();
+            }
+            IsOutStream = true;
         }
 
-        private ICellStyle FillStyle(StyleAttribute attr)
+        public DrawingFactory(Stream stream): this(stream, ExcelType.Excel2003)
+        {
+        }
+        
+        protected virtual ICellStyle FillCellStyle(StyleAttribute attr)
         {
             if (attr == null)
             {
                 return null;
             }
-            var style = _workbook.CreateCellStyle();
+            ICellStyle style;
+            if (WorkbookType == ExcelType.Excel2003)
+            {
+                style = FillCellStyle2003(attr);
+            }
+            else
+            {
+                style = FillCellStyle2007(attr);
+            }
             style.Alignment = attr.TextAlign;
             style.VerticalAlignment = attr.VerticalAlign;
+            var font = FillFont(attr);
+            if (font != null)
+            {
+                style.SetFont(font);
+            }
+            return style;
+        }
+
+        private HSSFCellStyle FillCellStyle2003(StyleAttribute attr)
+        {
+            var style = (HSSFCellStyle) ((HSSFWorkbook)Workbook).CreateCellStyle();
             if (!string.IsNullOrEmpty(attr.BackgroundColor))
             {
                 var color = attr.BackgroundColor.ToColor();
                 if (color.HasValue)
                 {
-                    style.FillForegroundColor = GetColor(color.Value);
-                    style.FillPattern = FillPattern.SolidForeground;
+                    style.FillBackgroundColor = GetColor2003(color.Value);
+                    style.FillPattern = attr.FillPattern;
+                }
+            }
+            if (!string.IsNullOrEmpty(attr.ForegroundColor))
+            {
+                var color = attr.ForegroundColor.ToColor();
+                if (color.HasValue)
+                {
+                    style.FillForegroundColor = GetColor2003(color.Value);
+                    style.FillPattern = attr.FillPattern;
                 }
             }
             return style;
         }
 
-        private IFont FillFont(StyleAttribute attr)
+        private XSSFCellStyle FillCellStyle2007(StyleAttribute attr)
+        {
+            var style = (XSSFCellStyle) ((XSSFWorkbook) Workbook).CreateCellStyle();
+            if (!string.IsNullOrEmpty(attr.BackgroundColor))
+            {
+                var color = attr.BackgroundColor.ToColor();
+                if (color.HasValue)
+                {
+                    style.SetFillBackgroundColor(GetColor2007(color.Value));
+                    style.FillPattern = attr.FillPattern;
+                }
+            }
+            if (!string.IsNullOrEmpty(attr.ForegroundColor))
+            {
+                var color = attr.ForegroundColor.ToColor();
+                if (color.HasValue)
+                {
+                    style.SetFillForegroundColor(GetColor2007(color.Value));
+                    style.FillPattern = attr.FillPattern;
+                }
+            }
+            return style;
+        }
+
+        protected virtual IFont FillFont(StyleAttribute attr)
         {
             if (attr == null)
             {
@@ -99,21 +165,21 @@ namespace NPOI.Objects
                 || attr.IsItalic
                 || !string.IsNullOrEmpty(attr.TextColor))
             {
-                var font = _workbook.CreateFont();
+                IFont font;
+                if (WorkbookType == ExcelType.Excel2003)
+                {
+                    font = FillFont2003(attr);
+                }
+                else
+                {
+                    font = FillFont2007(attr);
+                }
                 if (attr.FontWeight > 0)
                     font.Boldweight = attr.FontWeight;
                 if (!string.IsNullOrEmpty(attr.FontFamily))
                     font.FontName = attr.FontFamily;
                 if (attr.FontSize > 0)
                     font.FontHeightInPoints = attr.FontSize;
-                if (!string.IsNullOrEmpty(attr.TextColor))
-                {
-                    var color = attr.TextColor.ToColor();
-                    if (color.HasValue)
-                    {
-                        font.Color = GetColor(color.Value);
-                    }
-                }
                 if (attr.IsItalic)
                     font.IsItalic = true;
                 return font;
@@ -121,7 +187,62 @@ namespace NPOI.Objects
             return null;
         }
 
-        private ColumnDrawing[] GetColumnDrawings(Type classType)
+        private HSSFFont FillFont2003(StyleAttribute attr)
+        {
+            var font = (HSSFFont)((HSSFWorkbook) Workbook).CreateFont();
+            if (!string.IsNullOrEmpty(attr.TextColor))
+            {
+                var color = attr.TextColor.ToColor();
+                if (color.HasValue)
+                {
+                    font.Color = GetColor2003(color.Value);
+                }
+            }
+            return font;
+        }
+
+        private XSSFFont FillFont2007(StyleAttribute attr)
+        {
+            var font = (XSSFFont)((XSSFWorkbook)Workbook).CreateFont();
+            if (!string.IsNullOrEmpty(attr.TextColor))
+            {
+                var color = attr.TextColor.ToColor();
+                if (color.HasValue)
+                {
+                    font.SetColor(GetColor2007(color.Value));
+                }
+            }
+            return font;
+        }
+
+        private short GetColor2003(Color color)
+        {
+            var hssfWorkbook = Workbook as HSSFWorkbook;
+            if (hssfWorkbook != null)
+            {
+                var palette = hssfWorkbook.GetCustomPalette();
+                var workbookColor = palette.FindColor(color.R, color.G, color.B);
+                if (workbookColor != null)
+                    return workbookColor.Indexed;
+                try
+                {
+                    workbookColor = palette.AddColor(color.R, color.G, color.B);
+                    return workbookColor.Indexed;
+                }
+                catch (Exception)
+                {
+                    return palette.FindSimilarColor(color.R, color.G, color.B).Indexed;
+                }
+            }
+            return HSSFColor.COLOR_NORMAL;
+        }
+
+        private XSSFColor GetColor2007(Color color)
+        {
+            return new XSSFColor(color);
+        }
+
+        protected virtual ColumnDrawing[] GetColumnDrawings(Type classType)
         {
             var cellList = new List<ColumnDrawing>();
             var classProperties = classType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty);
@@ -153,7 +274,7 @@ namespace NPOI.Objects
                     cellInfo.ColumnName = property.Name;
                 // Column style information
                 var headerStyleAttr = property.GetCustomAttribute<HeaderStyleAttribute>();
-                var headerStyle = FillStyle(headerStyleAttr);
+                var headerStyle = FillCellStyle(headerStyleAttr);
                 if (headerStyle != null)
                     cellInfo.HeaderStyle = headerStyle;
                 var headerFont = FillFont(headerStyleAttr);
@@ -165,7 +286,7 @@ namespace NPOI.Objects
                 var cellStyleAttr = property.GetCustomAttribute<CellStyleAttribute>();
                 if (cellStyleAttr != null)
                 {
-                    var cellStyle = FillStyle(cellStyleAttr);
+                    var cellStyle = FillCellStyle(cellStyleAttr);
                     if (cellStyle != null)
                         cellInfo.CellStyle = cellStyle;
                     var cellFont = FillFont(cellStyleAttr);
@@ -176,7 +297,7 @@ namespace NPOI.Objects
                 if (alternateCellStyleAttr != null)
                 {
                     cellInfo.HasAlternate = true;
-                    var cellStyle = FillStyle(alternateCellStyleAttr);
+                    var cellStyle = FillCellStyle(alternateCellStyleAttr);
                     if (cellStyle != null)
                         cellInfo.AlternateCellStyle = cellStyle;
                     var cellFont = FillFont(alternateCellStyleAttr);
@@ -194,7 +315,7 @@ namespace NPOI.Objects
             return cellList.OrderBy(x => x.ColumnIndex).ToArray();
         }
 
-        private void DrawHeader(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int headerRowIndex)
+        protected virtual void DrawHeader(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int headerRowIndex)
         {
             var headerRow = sheet.CreateRow(headerRowIndex);
             foreach (var drawing in drawings)
@@ -204,12 +325,14 @@ namespace NPOI.Objects
                 headerCell.SetCellValue(drawing.ColumnName);
                 DrawHeaderFontAndStyle(headerCell, drawing);
                 if (drawing.ColumnWidth > 255)
-                    throw new ArgumentException("The maximum column width for an individual cell is 255 characters.");
+                {
+                    drawing.ColumnWidth = 255;
+                }
                 sheet.SetColumnWidth(drawing.ColumnIndex, drawing.ColumnWidth * 256);
             }
         }
 
-        private void DrawCellValue(ICell cell, object value)
+        protected virtual void DrawCellValue(ICell cell, object value)
         {
             if (value == null)
             {
@@ -265,9 +388,9 @@ namespace NPOI.Objects
             cell.SetCellValue(value.ToString());
         }
 
-        private void DrawCellFontAndStyle(ICell cell, ColumnDrawing drawing, bool alternate)
+        protected virtual void DrawCellFontAndStyle(ICell cell, ColumnDrawing drawing, bool alternate)
         {
-            if (_useTemplate)
+            if (UseTemplate)
                 return;
             ICellStyle style;
             IFont font;
@@ -288,16 +411,16 @@ namespace NPOI.Objects
                 cell.CellStyle.SetFont(font);
         }
 
-        private void DrawHeaderFontAndStyle(ICell cell, ColumnDrawing drawing)
+        protected virtual void DrawHeaderFontAndStyle(ICell cell, ColumnDrawing drawing)
         {
-            if (_useTemplate)
+            if (UseTemplate)
                 return;
             cell.CellStyle = drawing.HeaderStyle ?? cell.Sheet.Workbook.GetCellStyleAt(0);
             if (drawing.HeaderFont != null)
                 cell.CellStyle.SetFont(drawing.HeaderFont);
         }
 
-        private void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
+        protected virtual void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
         {
             var row = sheet.CreateRow(rowIndex);
             foreach (var drawing in drawings)
@@ -309,24 +432,26 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// write objects to worksheet
+        /// </summary>
+        /// <typeparam name="T">any type of model</typeparam>
+        /// <param name="sheetIndex">the worksheet index</param>
+        /// <param name="sheetName">the worksheet name</param>
+        /// <param name="objects">the arry of object</param>
         public void Draw<T>(int sheetIndex, string sheetName, params T[] objects)
         {
             if (objects == null)
                 throw new ArgumentNullException("objects");
             var type = typeof (T);
             var objAttr = type.GetCustomAttribute<NPOIObjectAttribute>() ?? new NPOIObjectAttribute();
-            var sheet = _workbook.GetSheet(sheetName);
+            var drawings = GetColumnDrawings(type);
+            var sheet = Workbook.GetSheet(sheetName);
             if (sheet == null)
             {
-                sheet = _workbook.CreateSheet(sheetName);
+                sheet = Workbook.CreateSheet(sheetName);
+                DrawHeader(drawings, sheet, objAttr.HeaderRowIndex);
             }
-            else
-            {
-                _workbook.Remove(sheet);
-                sheet = _workbook.CreateSheet(sheetName);
-            }
-            var drawings = GetColumnDrawings(type);
-            DrawHeader(drawings, sheet, objAttr.HeaderRowIndex);
             for (int i = 0; i < objects.Length; i++)
             {
                 var obj = objects[i];
@@ -336,23 +461,27 @@ namespace NPOI.Objects
 
         public void Dispose()
         {
-            if (_workbook != null)
+            if (Workbook != null)
             {
-                _workbook.Write(_excelStream);
+                Workbook.Write(ExcelStream);
             }
-            if (!_isOutStream && _excelStream != null)
-                _excelStream.Close();
+            if (!IsOutStream && ExcelStream != null)
+                ExcelStream.Close();
         }
 
+        /// <summary>
+        /// set the excel template to the worksheet
+        /// </summary>
+        /// <param name="path">the path of the excel template</param>
         public void SetTemplate(string path)
         {
             if (!File.Exists(path))
                 throw new FileNotFoundException("The excel template file cannot be found.");
             var ext = Path.GetExtension(path);
-            if (string.IsNullOrEmpty(ext) || ext.ToLower() != ".xls")
-                throw new FileLoadException("Invalid file extension. The file extension must be .xls", path);
-            _workbook = new HSSFWorkbook(new FileStream(path, FileMode.Open, FileAccess.ReadWrite));
-            _useTemplate = true;
+            if (string.IsNullOrEmpty(ext) || (!ext.ToLower().Equals(".xls", StringComparison.InvariantCultureIgnoreCase) && !ext.Equals(".xlsx", StringComparison.InvariantCultureIgnoreCase)))
+                throw new FileLoadException("Invalid file extension. The file extension must be .xls or .xlsx", path);
+            Workbook = new HSSFWorkbook(new FileStream(path, FileMode.Open, FileAccess.ReadWrite));
+            UseTemplate = true;
         }
     }
 }

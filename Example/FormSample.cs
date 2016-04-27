@@ -15,7 +15,7 @@ namespace NPOI.Example
                 locationList = factory.SheetToObjects<TestModel>();
                 dataGridView1.DataSource = locationList;
             }
-            using (var factory = new DrawingFactory(string.Format("{0}.xls", DateTime.Now.ToFileTimeUtc())))
+            using (var factory = new DrawingFactory(string.Format("{0}.xlsx", DateTime.Now.ToFileTimeUtc())))
             {
                 factory.Draw(0, "Sheet0", locationList);
             }

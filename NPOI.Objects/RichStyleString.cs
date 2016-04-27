@@ -4,7 +4,7 @@ using NPOI.SS.UserModel;
 
 namespace NPOI.Objects
 {
-    class RichStyleString
+    internal class RichStyleString
     {
         public IFont CurrentFont { get; set; }
 
