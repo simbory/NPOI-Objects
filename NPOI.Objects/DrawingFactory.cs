@@ -248,6 +248,7 @@ namespace NPOI.Objects
             var classProperties = classType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.GetProperty);
             if (classProperties.Length <= 0)
                 return new ColumnDrawing[0];
+            var columnIndexes = new List<int>();
             foreach (var property in classProperties)
             {
                 var ignoreAttr = property.GetCustomAttribute<DrawingIgnoreAttribute>();
@@ -256,18 +257,15 @@ namespace NPOI.Objects
                     continue;
                 var cellInfo = new ColumnDrawing();
                 // Column basic information
-                var columnIndexes = new List<int>();
-                if (propAttr.Index >= 0)
-                {
-                    if (columnIndexes.Contains(propAttr.Index))
-                        throw new Exception("Duplicate column index " + propAttr.Index);
-                    cellInfo.ColumnIndex = propAttr.Index;
-                    columnIndexes.Add(propAttr.Index);
-                }
-                else
+                if (propAttr.Index < 0)
                 {
                     throw new Exception("Column Index is out of range.\r\nThe value must not be smaller than 0.");
                 }
+                if (columnIndexes.Contains(propAttr.Index))
+                    throw new Exception("Duplicate column index " + propAttr.Index);
+                cellInfo.ColumnIndex = propAttr.Index;
+                columnIndexes.Add(propAttr.Index);
+
                 if (!string.IsNullOrEmpty(propAttr.Name))
                     cellInfo.ColumnName = propAttr.Name;
                 if (string.IsNullOrEmpty(cellInfo.ColumnName))
@@ -277,9 +275,6 @@ namespace NPOI.Objects
                 var headerStyle = FillCellStyle(headerStyleAttr);
                 if (headerStyle != null)
                     cellInfo.HeaderStyle = headerStyle;
-                var headerFont = FillFont(headerStyleAttr);
-                if (headerFont != null)
-                    cellInfo.HeaderFont = headerFont;
                 if (headerStyleAttr != null)
                     cellInfo.ColumnWidth = headerStyleAttr.ColumnWidth;
 
@@ -321,8 +316,6 @@ namespace NPOI.Objects
             foreach (var drawing in drawings)
             {
                 var headerCell = headerRow.CreateCell(drawing.ColumnIndex);
-                headerCell.SetCellType(CellType.String);
-                headerCell.SetCellValue(drawing.ColumnName);
                 DrawHeaderFontAndStyle(headerCell, drawing);
                 if (drawing.ColumnWidth > 255)
                 {
@@ -413,11 +406,11 @@ namespace NPOI.Objects
 
         protected virtual void DrawHeaderFontAndStyle(ICell cell, ColumnDrawing drawing)
         {
+            cell.SetCellType(CellType.String);
+            cell.SetCellValue(drawing.ColumnName);
             if (UseTemplate)
                 return;
-            cell.CellStyle = drawing.HeaderStyle ?? cell.Sheet.Workbook.GetCellStyleAt(0);
-            if (drawing.HeaderFont != null)
-                cell.CellStyle.SetFont(drawing.HeaderFont);
+            cell.CellStyle = drawing.HeaderStyle;
         }
 
         protected virtual void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)

@@ -22,6 +22,5 @@ namespace NPOI.Objects
         public IFont AlternateCellFont { get; set; }
 
         public ICellStyle HeaderStyle { get; set; }
-        public IFont HeaderFont { get; set; }
     }
 }
