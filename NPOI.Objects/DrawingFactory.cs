@@ -11,20 +11,45 @@ using NPOI.XSSF.UserModel;
 
 namespace NPOI.Objects
 {
+    /// <summary>
+    /// DrawingFactory is used to create an excel file/stream and write the value of the model to the excel file/stream
+    /// </summary>
     public class DrawingFactory : IDisposable
     {
+        /// <summary>
+        /// Excel workbook object
+        /// </summary>
         protected IWorkbook Workbook;
 
+        /// <summary>
+        /// excel output stream
+        /// </summary>
         protected readonly Stream ExcelStream;
 
+        /// <summary>
+        /// is output stream or not
+        /// </summary>
         protected readonly bool IsOutStream;
 
+        /// <summary>
+        /// use excel template or not
+        /// </summary>
         protected bool UseTemplate;
         
+        /// <summary>
+        /// the file path of the excel file
+        /// </summary>
         public string ExcelPath { get; protected set; }
 
+        /// <summary>
+        /// the type of the workbook, Excel2003(.xls) or Excel2007(.xlsx)
+        /// </summary>
         public ExcelType WorkbookType { get; protected set; }
 
+        /// <summary>
+        /// the constructor
+        /// </summary>
+        /// <param name="path">the file path of the excel. the file extension must be .xls or .xlsx</param>
         public DrawingFactory(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -57,6 +82,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the constructor
+        /// </summary>
+        /// <param name="stream">the excel output stream</param>
+        /// <param name="workbookType">the excel type</param>
         public DrawingFactory(Stream stream, ExcelType workbookType)
         {
             if (stream == null)
@@ -76,10 +106,19 @@ namespace NPOI.Objects
             IsOutStream = true;
         }
 
+        /// <summary>
+        /// the constructor
+        /// </summary>
+        /// <param name="stream">the excel output stream</param>
         public DrawingFactory(Stream stream): this(stream, ExcelType.Excel2003)
         {
         }
         
+        /// <summary>
+        /// convert the StyleAttribute to the CellStyle object
+        /// </summary>
+        /// <param name="attr">the object of the StyleAttribute</param>
+        /// <returns>the CellStyle</returns>
         protected virtual ICellStyle FillCellStyle(StyleAttribute attr)
         {
             if (attr == null)
@@ -153,6 +192,11 @@ namespace NPOI.Objects
             return style;
         }
 
+        /// <summary>
+        /// convert StyleAttribute to the excel font 
+        /// </summary>
+        /// <param name="attr">the value of the StyleAttribute</param>
+        /// <returns>the font</returns>
         protected virtual IFont FillFont(StyleAttribute attr)
         {
             if (attr == null)
@@ -242,6 +286,11 @@ namespace NPOI.Objects
             return new XSSFColor(color);
         }
 
+        /// <summary>
+        /// get the ColumnDrawing info from the model type
+        /// </summary>
+        /// <param name="classType">the type of the model class</param>
+        /// <returns>the ColumnDrawing array</returns>
         protected virtual ColumnDrawing[] GetColumnDrawings(Type classType)
         {
             var cellList = new List<ColumnDrawing>();
@@ -310,6 +359,12 @@ namespace NPOI.Objects
             return cellList.OrderBy(x => x.ColumnIndex).ToArray();
         }
 
+        /// <summary>
+        /// draw the header of the excel
+        /// </summary>
+        /// <param name="drawings">the ColumnDrawing array</param>
+        /// <param name="sheet">the excel sheet</param>
+        /// <param name="headerRowIndex">the header row index</param>
         protected virtual void DrawHeader(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int headerRowIndex)
         {
             var headerRow = sheet.CreateRow(headerRowIndex);
@@ -325,6 +380,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// draw the cell value of the excel
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <param name="value">the excel cell value</param>
         protected virtual void DrawCellValue(ICell cell, object value)
         {
             if (value == null)
@@ -381,6 +441,12 @@ namespace NPOI.Objects
             cell.SetCellValue(value.ToString());
         }
 
+        /// <summary>
+        /// draw the cell font and style
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <param name="drawing">the ColumnDrawing object</param>
+        /// <param name="alternate">is alternate excel cell</param>
         protected virtual void DrawCellFontAndStyle(ICell cell, ColumnDrawing drawing, bool alternate)
         {
             if (UseTemplate)
@@ -404,6 +470,11 @@ namespace NPOI.Objects
                 cell.CellStyle.SetFont(font);
         }
 
+        /// <summary>
+        /// draw the header cell font and style
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <param name="drawing">the ColumnDrawing object</param>
         protected virtual void DrawHeaderFontAndStyle(ICell cell, ColumnDrawing drawing)
         {
             cell.SetCellType(CellType.String);
@@ -413,6 +484,13 @@ namespace NPOI.Objects
             cell.CellStyle = drawing.HeaderStyle;
         }
 
+        /// <summary>
+        /// draw the whole row
+        /// </summary>
+        /// <param name="drawings">the array of the ColumnDrawing</param>
+        /// <param name="sheet">the excel sheet</param>
+        /// <param name="rowIndex">the row index</param>
+        /// <param name="obj">the value object of the whole row</param>
         protected virtual void DrawRow(IEnumerable<ColumnDrawing> drawings, ISheet sheet, int rowIndex, object obj)
         {
             var row = sheet.CreateRow(rowIndex);
@@ -452,6 +530,9 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// Dispose
+        /// </summary>
         public void Dispose()
         {
             if (Workbook != null)

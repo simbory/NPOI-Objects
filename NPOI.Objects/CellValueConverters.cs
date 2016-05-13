@@ -4,8 +4,16 @@ using NPOI.SS.UserModel;
 
 namespace NPOI.Objects
 {
+    /// <summary>
+    /// the default cell value converters
+    /// </summary>
     public static class CellValueConverters
     {
+        /// <summary>
+        /// convert the cell value to rich text string(HTML)
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the rich text string (HTML)</returns>
         public static string RichTextConverter(ICell cell)
         {
             var stringBuilder = new StringBuilder();
@@ -58,6 +66,11 @@ namespace NPOI.Objects
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// the default converter that be used to convert the cell value to boolean 
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the boolean value</returns>
         public static bool BooleanConverter(ICell cell)
         {
             try
@@ -70,6 +83,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the default converter used to convert the cell value to number
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the number</returns>
         public static double NumericConverter(ICell cell)
         {
             try
@@ -82,6 +100,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the default converter used to convert the cell value to DateTime
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the datetime value</returns>
         public static DateTime DateTimeConverter(ICell cell)
         {
             try
@@ -94,6 +117,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the default converter used to convert the cell value to byte
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the byte value</returns>
         public static byte ByteConverter(ICell cell)
         {
             try
@@ -106,6 +134,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the default converter used to convert the cell value to char
+        /// </summary>
+        /// <param name="cell">the excel value</param>
+        /// <returns>the char value</returns>
         public static char CharConverter(ICell cell)
         {
             try
@@ -123,6 +156,11 @@ namespace NPOI.Objects
             }
         }
 
+        /// <summary>
+        /// the default converter used to convert the cell value to Guid
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <returns>the Guid value</returns>
         public static Guid GuidConverter(ICell cell)
         {
             try
@@ -144,7 +182,13 @@ namespace NPOI.Objects
             }
         }
 
-        public static object UnknowTypeConverter(ICell cell, Type type)
+        /// <summary>
+        /// the default converter used to convert the cell value to any other object
+        /// </summary>
+        /// <param name="cell">the excel cell</param>
+        /// <param name="type">the type of the object</param>
+        /// <returns>the value of the object</returns>
+        public static object UnknownTypeConverter(ICell cell, Type type)
         {
             return null;
         }

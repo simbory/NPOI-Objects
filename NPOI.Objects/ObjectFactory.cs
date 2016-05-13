@@ -8,34 +8,80 @@ using NPOI.XSSF.UserModel;
 
 namespace NPOI.Objects
 {
+    /// <summary>
+    /// the ObjectFactory class is used to read the excel file/stream and convert the value in excel to the model
+    /// </summary>
     public class ObjectFactory : IDisposable
     {
-        protected readonly IWorkbook Workbook;
+        /// <summary>
+        /// the excel workbook
+        /// </summary>
+        protected IWorkbook Workbook;
 
+        /// <summary>
+        /// the excel stream
+        /// </summary>
         protected readonly Stream ExcelStream;
 
-        protected readonly bool NeedClose;
+        /// <summary>
+        /// indicate that the ObjectFactory need auto-close the stream or not after reading the excel file/stream 
+        /// </summary>
+        protected bool NeedClose;
 
+        /// <summary>
+        /// the file path of the excel
+        /// </summary>
         public string ExcelPath { get; protected set; }
 
+        /// <summary>
+        /// the excel type
+        /// </summary>
         public ExcelType ExcelType { get; protected set; }
 
+        /// <summary>
+        /// rich text converter
+        /// </summary>
         public Func<ICell, string> RichTextConverter { get; set; }
 
+        /// <summary>
+        /// boolean converter
+        /// </summary>
         public Func<ICell, bool> BooleanConverter { get; set; }
 
+        /// <summary>
+        /// number converter
+        /// </summary>
         public Func<ICell, double> NumericConverter { get; set; }
 
+        /// <summary>
+        /// DateTime convertor
+        /// </summary>
         public Func<ICell, DateTime> DateTimeConverter { get; set; }
 
+        /// <summary>
+        /// byte converter
+        /// </summary>
         public Func<ICell, byte> ByteConverter { get; set; }
 
+        /// <summary>
+        /// char converter
+        /// </summary>
         public Func<ICell, char> CharConverter { get; set; }
 
+        /// <summary>
+        /// Guid Converter
+        /// </summary>
         public Func<ICell, Guid> GuidConverter { get; set; }
 
-        public Func<ICell, Type, object> UnknowTypeConverter { get; set; }
+        /// <summary>
+        /// Unknown type converter
+        /// </summary>
+        public Func<ICell, Type, object> UnknownTypeConverter { get; set; }
 
+        /// <summary>
+        /// constructor
+        /// </summary>
+        /// <param name="path">the excel path</param>
         public ObjectFactory(string path)
         {
             ExcelPath = path;
@@ -44,20 +90,15 @@ namespace NPOI.Objects
                 throw new FileLoadException("File extension is invalid", path);
             ExcelType = ext == ".xls" ? ExcelType.Excel2003 : ExcelType.Excel2007;
             ExcelStream = new FileStream(path, FileMode.Open, FileAccess.Read);
-            Workbook = ExcelType == ExcelType.Excel2003
-                    ? (IWorkbook)new HSSFWorkbook(ExcelStream)
-                    : new XSSFWorkbook(ExcelStream);
             NeedClose = true;
-            RichTextConverter = CellValueConverters.RichTextConverter;
-            BooleanConverter = CellValueConverters.BooleanConverter;
-            NumericConverter = CellValueConverters.NumericConverter;
-            DateTimeConverter = CellValueConverters.DateTimeConverter;
-            ByteConverter = CellValueConverters.ByteConverter;
-            CharConverter = CellValueConverters.CharConverter;
-            GuidConverter = CellValueConverters.GuidConverter;
-            UnknowTypeConverter = CellValueConverters.UnknowTypeConverter;
+            Init();
         }
 
+        /// <summary>
+        /// constuctor
+        /// </summary>
+        /// <param name="stream">the excel stream</param>
+        /// <param name="excelType">the excel type</param>
         public ObjectFactory(Stream stream, ExcelType excelType)
         {
             ExcelType = excelType;
@@ -65,13 +106,32 @@ namespace NPOI.Objects
                 throw new ArgumentNullException("stream");
             if (!stream.CanRead)
                 throw new IOException("The file stream is not readable.");
-            Workbook = ExcelType == ExcelType.Excel2003
-                ? (IWorkbook)new HSSFWorkbook(stream)
-                : new XSSFWorkbook(stream);
             ExcelStream = stream;
             NeedClose = false;
+            Init();
+        }
+
+        private void Init()
+        {
+            Workbook = ExcelType == ExcelType.Excel2003
+                    ? (IWorkbook)new HSSFWorkbook(ExcelStream)
+                    : new XSSFWorkbook(ExcelStream);
+            RichTextConverter = CellValueConverters.RichTextConverter;
+            BooleanConverter = CellValueConverters.BooleanConverter;
+            NumericConverter = CellValueConverters.NumericConverter;
+            DateTimeConverter = CellValueConverters.DateTimeConverter;
+            ByteConverter = CellValueConverters.ByteConverter;
+            CharConverter = CellValueConverters.CharConverter;
+            GuidConverter = CellValueConverters.GuidConverter;
+            UnknownTypeConverter = CellValueConverters.UnknownTypeConverter;
         }
         
+        /// <summary>
+        /// convert the excel worksheet to model array
+        /// </summary>
+        /// <typeparam name="T">the type of the model</typeparam>
+        /// <param name="sheetIndex">the sheeet index</param>
+        /// <returns>the model array</returns>
         public T[] SheetToObjects<T>(int sheetIndex = 0) where T : class
         {
             AssertType(typeof(T));
@@ -81,6 +141,12 @@ namespace NPOI.Objects
             return ConvertSheetToObjects<T>(sheet);
         }
 
+        /// <summary>
+        /// convert the excel worksheet to model array
+        /// </summary>
+        /// <typeparam name="T">the type of the model</typeparam>
+        /// <param name="sheetName">the sheet name</param>
+        /// <returns>the model array</returns>
         public T[] SheetToObjects<T>(string sheetName) where T : class
         {
             AssertType(typeof(T));
@@ -90,7 +156,7 @@ namespace NPOI.Objects
             return ConvertSheetToObjects<T>(sheet);
         }
 
-        protected Dictionary<PropertyInfo, int> GetClassProperties(Type classType, ISheet sheet)
+        private Dictionary<PropertyInfo, int> GetClassProperties(Type classType, ISheet sheet)
         {
             if (sheet == null)
                 return null;
@@ -146,7 +212,7 @@ namespace NPOI.Objects
             return props;
         }
 
-        protected T[] ConvertSheetToObjects<T>(ISheet sheet) where T : class
+        private T[] ConvertSheetToObjects<T>(ISheet sheet) where T : class
         {
             if (sheet == null)
                 return new T[0];
@@ -165,7 +231,7 @@ namespace NPOI.Objects
             return objectList.ToArray();
         }
 
-        protected T RowToObject<T>(Dictionary<PropertyInfo, int> props, IRow row)
+        private T RowToObject<T>(Dictionary<PropertyInfo, int> props, IRow row)
         {
             var obj = Activator.CreateInstance<T>();
             if (row != null)
@@ -186,7 +252,7 @@ namespace NPOI.Objects
             return obj;
         }
 
-        protected virtual object GetCellValue(PropertyInfo prop, ICell cell)
+        private object GetCellValue(PropertyInfo prop, ICell cell)
         {
             var propType = prop.PropertyType;
 
@@ -260,10 +326,10 @@ namespace NPOI.Objects
             {
                 return GuidConverter(cell);
             }
-            return UnknowTypeConverter(cell, propType);
+            return UnknownTypeConverter(cell, propType);
         }
 
-        protected NPOIObjectAttribute AssertType(Type type)
+        private NPOIObjectAttribute AssertType(Type type)
         {
             var attr = type.GetCustomAttribute<NPOIObjectAttribute>();
             if (attr == null)
@@ -273,6 +339,9 @@ namespace NPOI.Objects
             return attr;
         }
 
+        /// <summary>
+        /// Dispose
+        /// </summary>
         public void Dispose()
         {
             if (ExcelStream == null || !NeedClose)

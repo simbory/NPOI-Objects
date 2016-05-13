@@ -1,4 +1,18 @@
 ﻿namespace NPOI.Objects
 {
-    public enum ExcelType { Excel2007, Excel2003 }
+    /// <summary>
+    /// The excel type
+    /// </summary>
+    public enum ExcelType
+    {
+        /// <summary>
+        /// the file extension is .xlsx
+        /// </summary>
+        Excel2007,
+
+        /// <summary>
+        /// the file extension is .xls
+        /// </summary>
+        Excel2003
+    }
 }
