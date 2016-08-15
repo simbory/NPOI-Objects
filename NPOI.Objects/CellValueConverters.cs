@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Text;
+using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace NPOI.Objects
 {
@@ -33,9 +35,16 @@ namespace NPOI.Objects
                 IFont font = null;
                 try
                 {
-                    var fontIndex = richText.GetFontAtIndex(i);
-                    if (fontIndex >= 0)
-                        font = cell.Sheet.Workbook.GetFontAt(fontIndex);
+                    if (typeof(XSSFRichTextString) == richText.GetType())
+                    {
+                        font = ((XSSFRichTextString) richText).GetFontAtIndex(i);
+                    }
+                    else if (typeof(HSSFRichTextString) == richText.GetType())
+                    {
+                        var fontIndex = ((HSSFRichTextString) richText).GetFontAtIndex(i);
+                        if (fontIndex >= 0)
+                            font = cell.Sheet.Workbook.GetFontAt(fontIndex);
+                    }
                 }
                 catch (Exception)
                 {
