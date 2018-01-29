@@ -213,3 +213,7 @@ $RECYCLE.BIN/
 .vs
 NPOI.Objects.NugetPackager
 .idea
+bin/Debug/*.xls
+bin/Debug/*.xlsx
+bin/Release/*.xls
+bin/Release/*.xlsx
